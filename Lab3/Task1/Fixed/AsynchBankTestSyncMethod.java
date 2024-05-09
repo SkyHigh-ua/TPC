@@ -5,7 +5,7 @@ public class AsynchBankTestSyncMethod {
     public static final int INITIAL_BALANCE = 10000;
 
     public static void main(String[] args) {
-        BankWith bank = new BankWith(NACCOUNTS, INITIAL_BALANCE);
+        Bank bank = new Bank(NACCOUNTS, INITIAL_BALANCE);
         for (int i = 0; i < NACCOUNTS; i++) {
             TransferThreadWith t = new TransferThreadWith(bank, i, INITIAL_BALANCE);
             t.setPriority(Thread.NORM_PRIORITY + i % 2);
@@ -14,12 +14,12 @@ public class AsynchBankTestSyncMethod {
     }
 }
 
-class BankWith {
+class Bank {
     public static final int NTEST = 10000;
     private final int[] accounts;
     private long ntransacts = 0;
 
-    public BankWith(int n, int initialBalance) {
+    public Bank(int n, int initialBalance) {
         accounts = new int[n];
         for (int i = 0; i < accounts.length; i++)
             accounts[i] = initialBalance;
@@ -46,12 +46,12 @@ class BankWith {
 }
 
 class TransferThreadWith extends Thread {
-    private BankWith bank;
+    private Bank bank;
     private int fromAccount;
     private int maxAmount;
     private static final int REPS = 1000;
 
-    public TransferThreadWith(BankWith b, int from, int max) {
+    public TransferThreadWith(Bank b, int from, int max) {
         bank = b;
         fromAccount = from;
         maxAmount = max;
