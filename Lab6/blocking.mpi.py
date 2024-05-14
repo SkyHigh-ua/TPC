@@ -2,14 +2,14 @@ from mpi4py import MPI
 import numpy as np
 import sys
 
-default_args = [62, 15, 7]
+default_args = [62, 15, 7, True]
 args = sys.argv[1:]
 args.extend(default_args[len(args):])
-args = [int(arg) for arg in args]
 
-NRA = args[0] 
-NCA = args[1] 
-NCB = args[2] 
+NRA = int(args[0])
+NCA = int(args[1])
+NCB = int(args[2])
+VERBOSE = False if args[3] == 'False' else True
 MASTER = 0
 FROM_MASTER = 1
 FROM_WORKER = 2
@@ -52,12 +52,13 @@ if taskid == MASTER:
         print("Received results from task %d" % source)
         c[offset:offset + rows] = c_part
 
-    print("****")
-    print("Result Matrix:")
-    for i in range(NRA):
-        print(" ".join("%6.2f" % c[i][j] for j in range(NCB)))
-    print("********")
-    print("Done.")
+    if(VERBOSE):
+        print("****")
+        print("Result Matrix:")
+        for i in range(NRA):
+            print(" ".join("%6.2f" % c[i][j] for j in range(NCB)))
+        print("********")
+        print("Done.")
 
 else:
     offset = comm.recv(source=MASTER, tag=FROM_MASTER)
