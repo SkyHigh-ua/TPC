@@ -8,11 +8,17 @@ public class QueueingSystem {
     private static int maxQueueSize = 10;
     private static int interval = 10;
     private static int totalObjects = 1000;
-    private static int rejectedObjects = 0;
-    private static List<Integer> queueLengths = new ArrayList<>();
+    private int rejectedObjects = 0;
+    private List<Integer> queueLengths = new ArrayList<>();
     private static BlockingQueue<Integer> processedObjects = new LinkedBlockingQueue<>();
 
     public static void main(String[] args) {
+        QueueingSystem queue = new QueueingSystem();
+        queue.runQueueingSystem(totalObjects, numChannels, maxQueueSize); 
+        System.exit(0);
+    }
+
+    public QueueingSystemResult runQueueingSystem(int totalObjects, int numChannels, int maxQueueSize) {
         Queue<Object> queue = new LinkedList<>();
         ExecutorService executor = Executors.newFixedThreadPool(numChannels);
 
@@ -29,7 +35,6 @@ public class QueueingSystem {
 
                 System.out.println("Average queue length: " + averageQueueLength);
                 System.out.println("Probability of rejection: " + rejectionProbability);
-                executor.shutdown();
             } catch (InterruptedException e) { }
         });
 
@@ -42,14 +47,16 @@ public class QueueingSystem {
 
                     if (queue.size() < maxQueueSize) {
                         queue.add(object);
-                        System.out.println("Object " + (i+1) + " added. Total objects rejected: " + rejectedObjects);
-                    } else {
-                        System.out.println("Queue is full. Object rejected.");
+                        // System.out.println("Object " + (i+1) + " added. Total objects rejected: " + rejectedObjects);
+                    } else if (i < totalObjects + rejectedObjects) {
+                        // System.out.println("Queue is full. Object rejected.");
                         rejectedObjects++;
                     }
 
                     Thread.sleep(getRandomInterval());
-                } catch (InterruptedException e) { }
+                } catch (InterruptedException e) { 
+                    Thread.currentThread().interrupt();
+                }
             }
         });
 
@@ -59,6 +66,15 @@ public class QueueingSystem {
         
         producerThread.start();
 
+        try {    
+            outputThread.join();
+        } catch (InterruptedException e) { }
+        executor.shutdown();
+
+        return new QueueingSystemResult(
+            queueLengths.stream().mapToInt(Integer::intValue).average().orElse(0),
+            (double) rejectedObjects / (totalObjects + rejectedObjects)
+        );
     }
 
     private static Object createObject() {
@@ -78,28 +94,53 @@ public class QueueingSystem {
 
         @Override
         public void run() {
-            while (true) {
+            while (!Thread.currentThread().isInterrupted()) {
                 try {
                     Object object;
                     synchronized (queue) {
                         if (!queue.isEmpty()) {
                             object = queue.poll();
-                            processObject(object);
-                            Thread.sleep(getRandomServiceTime());
-                            int processed = queue.size();
-                            processedObjects.put(processed);
+                        } else {
+                            continue;
                         }
+                        processObject(object);
+                        Thread.sleep(getRandomServiceTime());
+                        int processed;
+                        synchronized (queue) {
+                            processed = queue.size();
+                        }
+                        processedObjects.put(processed);
                     }
-                } catch (InterruptedException e) { }
+                } catch (InterruptedException e) { 
+                    Thread.currentThread().interrupt();
+                }
             }
         }
     }
 
     private static void processObject(Object object) {
-        System.out.println("Object processed");
+        // System.out.println("Object processed");
     }
 
     private static int getRandomServiceTime() {
         return new Random().nextInt(interval) + 1;
+    }
+}
+
+class QueueingSystemResult {
+    private double averageQueueLength;
+    private double rejectionProbability;
+
+    public QueueingSystemResult(double averageQueueLength, double rejectionProbability) {
+        this.averageQueueLength = averageQueueLength;
+        this.rejectionProbability = rejectionProbability;
+    }
+
+    public double getAverageQueueLength() {
+        return averageQueueLength;
+    }
+
+    public double getRejectionProbability() {
+        return rejectionProbability;
     }
 }
